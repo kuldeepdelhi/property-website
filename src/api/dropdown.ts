@@ -1,9 +1,12 @@
 import apiClient from "./apiClient";
 
 // Search locations
+// Search locations
+// Search locations
 export const searchLocation = async (query: string, limit: number = 50) => {
   try {
-    const response = await apiClient.post('/api/search-location', {
+    // Yahan '/api/search-location' ki jagah '/api/v1/search-location' karein
+    const response = await apiClient.post('/api/v1/search-location', {
       query,
       limit,
     });
@@ -13,7 +16,6 @@ export const searchLocation = async (query: string, limit: number = 50) => {
     throw error;
   }
 };
-
 // Get location details
 export const getLocationDetails = async (data: {
   type: string;
