@@ -122,13 +122,21 @@ export const getCitiesByState = async (state: string, search?: string, page: num
 
 export const getLocalities = async (city: string, state?: string, search?: string) => {
   try {
-    // fetch ki jagah apiClient ka use karein
-    const response = await apiClient.post("/api/v1/localities", {
-      state,
-      city,
-      search,
-    });
-    return response.data;
+    const response = await fetch(
+      "https://nextopson.com/api/v1/localities",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ state, city, search }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("Error fetching localities:", error);
     return [];

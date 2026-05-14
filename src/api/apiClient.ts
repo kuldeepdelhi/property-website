@@ -11,7 +11,7 @@ const apiClient = axios.create({
 // Optional: request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("portalToken"); // sessionToken ko portalToken karein
+    const token = localStorage.getItem("sessionToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
