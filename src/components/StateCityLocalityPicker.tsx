@@ -60,11 +60,8 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
   }, [wrapperRef]);
 
   // Load States aur pehli baar ke cities automatically
-  useEffect(() => {
-    fetchStates();
-    // Shuruwat mein saari cities mangwa lene ke liye (optional, backend allow kare toh)
-    fetchCities(""); 
-  }, []);
+ // Load States aur pehli baar ke cities automatically
+  // <--- Yahan humne dono function ke naam daal diye hain
 
   const fetchStates = useCallback(async () => {
     setLoading(true);
@@ -95,7 +92,11 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
       setLoading(false);
     }
   }, []);
-
+useEffect(() => {
+    fetchStates();
+    // Shuruwat mein saari cities mangwa lene ke liye (optional, backend allow kare toh)
+    fetchCities(""); 
+  }, [fetchStates, fetchCities]); 
   const fetchLocalities = useCallback(async (cityName: string, stateName: string, search: string = "") => {
     setLoading(true);
     try {
