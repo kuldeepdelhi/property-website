@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PickerProps } from "../types";
 import {
   searchLocation,
-  // getLocationDetails,
   getAllStates,
   getCitiesByState,
   getLocalities
@@ -11,7 +10,6 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch, faTimes, faMapMarkerAlt, faChevronRight, faMap } from "@fortawesome/free-solid-svg-icons";
 
-// Define the shape of search results based on API response
 interface LocationResult {
   id: string;
   name: string;
@@ -26,20 +24,6 @@ interface LocationResult {
   isActive: boolean;
 }
 
-interface StateItem {
-  id?: string;
-  name?: string;
-  state: string;
-  type: string;
-  cityCount?: number;
-}
-
-interface CityItem {
-  id: string;
-  name: string;
-  state: string;
-}
-
 const StateCityLocalityPicker: React.FC<PickerProps> = ({
   value,
   onChange,
@@ -47,9 +31,10 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
 }) => {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<LocationResult[]>([]);
-  const [statesList, setStatesList] = useState<StateItem[]>([]);
-  const [citiesList, setCitiesList] = useState<CityItem[]>([]);
-  const [localitiesList, setLocalitiesList] = useState<string[]>([]);
+  
+  const [statesList, setStatesList] = useState<any[]>([]);
+  const [citiesList, setCitiesList] = useState<any[]>([]);
+  const [localitiesList, setLocalitiesList] = useState<any[]>([]);
 
   const [currentView, setCurrentView] = useState<'search' | 'states' | 'cities' | 'localities'>('search');
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -58,12 +43,12 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Ref to handle click outside
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  const getStateName = (s: any) => typeof s === 'string' ? s : (s?.label || s?.state || s?.name || "");
+  const getCityName = (c: any) => typeof c === 'string' ? c : (c?.name || c?.city || c?.label || "");
+  const getLocalityName = (l: any) => typeof l === 'string' ? l : (l?.locality || l?.name || l?.label || "");
 
-
-  // Handle outside clicks
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -74,13 +59,19 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
 
+  // Load States aur pehli baar ke cities automatically
+  useEffect(() => {
+    fetchStates();
+    // Shuruwat mein saari cities mangwa lene ke liye (optional, backend allow kare toh)
+    fetchCities(""); 
+  }, []);
+
   const fetchStates = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getAllStates();
-      if (res && res.data) {
-        // Handle both simple array and wrapped response
-        const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      if (res) {
+        const data = Array.isArray(res) ? res : (res.data || []);
         setStatesList(data);
       }
     } catch (err) {
@@ -94,8 +85,8 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
     setLoading(true);
     try {
       const res = await getCitiesByState(stateName, search);
-      if (res && res.data) {
-        const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
+      if (res) {
+        const data = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : []);
         setCitiesList(data);
       }
     } catch (err) {
@@ -109,11 +100,9 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
     setLoading(true);
     try {
       const res = await getLocalities(cityName, stateName, search);
-      // getLocalities in dropdown.ts returns raw data
-      if (Array.isArray(res)) {
-        setLocalitiesList(res);
-      } else if (res && res.data) {
-        setLocalitiesList(res.data);
+      if (res) {
+        const data = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : []);
+        setLocalitiesList(data);
       }
     } catch (err) {
       console.error("Error fetching localities:", err);
@@ -126,15 +115,12 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
     if (!query.trim()) {
       setSearchResults([]);
       setCurrentView('states');
-      fetchStates();
       setShowDropdown(true);
       return;
     }
-
     setCurrentView('search');
     setLoading(true);
     setShowDropdown(true);
-
     try {
       const res = await searchLocation(query);
       if (res && res.data) {
@@ -153,7 +139,6 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
   const handleSearchChange = (text: string) => {
     setQuery(text);
     if (text === "") {
-      // If user clears the search bar manually, we reset all fields
       onChange({ state: "", city: "", locality: "" });
       setSearchResults([]);
       setCurrentView('states');
@@ -163,62 +148,62 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
   };
 
   const filteredStates = useMemo(() => {
-    if (!value.state.trim()) return statesList;
-    return statesList.filter(s =>
-      (s.state || s.name || "").toLowerCase().includes(value.state.toLowerCase())
+    if (!value.state || !value.state.trim()) return statesList;
+    return statesList.filter((s: any) =>
+      getStateName(s).toLowerCase().includes(value.state.toLowerCase())
     );
   }, [statesList, value.state]);
 
   const filteredCities = useMemo(() => {
-    if (!value.city.trim()) return citiesList;
-    return citiesList.filter(c =>
-      c.name.toLowerCase().includes(value.city.toLowerCase())
+    if (!value.city || !value.city.trim()) return citiesList;
+    return citiesList.filter((c: any) =>
+      getCityName(c).toLowerCase().includes(value.city.toLowerCase())
     );
   }, [citiesList, value.city]);
+  
+  const filteredLocalities = useMemo(() => {
+      if (!value.locality || !value.locality.trim()) return localitiesList;
+      return localitiesList.filter((l: any) =>
+        getLocalityName(l).toLowerCase().includes(value.locality.toLowerCase())
+      );
+    }, [localitiesList, value.locality]);
 
-
-  const handleStateSelect = (state: StateItem) => {
-    const stateName = state.state || state.name || "";
+  const handleStateSelect = (state: any) => {
+    const stateName = getStateName(state);
     setSelectedState(stateName);
-
-    // Update parent state so input box shows the value
     onChange({
       ...value,
       state: stateName,
-      city: "", // Clear city and locality when state changes
+      city: "",
       locality: ""
     });
-
     setCurrentView('cities');
     fetchCities(stateName);
   };
 
-  const handleCitySelect = (city: CityItem) => {
-    setSelectedCity(city.name);
-
-    // Update parent state so input box shows the value
+  const handleCitySelect = (city: any) => {
+    const cityName = getCityName(city);
+    setSelectedCity(cityName);
     onChange({
       ...value,
-      city: city.name,
-      locality: "" // Clear locality when city changes
+      city: cityName,
+      locality: ""
     });
-
     setCurrentView('localities');
-    fetchLocalities(city.name, selectedState || city.state);
+    fetchLocalities(cityName, selectedState || value.state);
   };
 
-  const handleLocalitySelect = (locality: string) => {
-    // Preserve manual entries if dropdown selection state is missing
+  const handleLocalitySelect = (locality: any) => {
+    const localityName = getLocalityName(locality);
     const cityName = selectedCity || value.city || "";
     const stateName = selectedState || value.state || "";
 
     onChange({
       state: stateName,
       city: cityName,
-      locality: locality,
+      locality: localityName,
     });
-
-    setQuery([locality, cityName, stateName].filter(Boolean).join(", "));
+    setQuery([localityName, cityName, stateName].filter(Boolean).join(", "));
     setShowDropdown(false);
   };
 
@@ -234,7 +219,6 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
     setShowDropdown(false);
   };
 
-
   const handleClear = () => {
     setQuery("");
     setSearchResults([]);
@@ -242,7 +226,6 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
     setSelectedCity(null);
     onChange({ state: "", city: "", locality: "" });
     setCurrentView('states');
-    if (statesList.length === 0) fetchStates();
   };
 
   const isFieldRequired = (fieldName: string) => errorFields.includes(fieldName);
@@ -278,22 +261,11 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
             type="text"
             value={query}
             onChange={(e) => handleSearchChange(e.target.value)}
-            onFocus={() => {
-              setCurrentView('search');
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                triggerGlobalSearch();
-              }
-            }}
+            onFocus={() => setCurrentView('search')}
+            onKeyDown={(e) => { if (e.key === 'Enter') triggerGlobalSearch(); }}
             placeholder="Type city or locality..."
             className="form-input pl-10 pr-20 w-full rounded-xl py-3 border-gray-200 focus:border-blue-500 transition-all shadow-sm"
           />
-
-          {/* <div className="absolute left-3 text-gray-400">
-            <FontAwesomeIcon icon={faSearch} />
-          </div> */}
-
           <div className="absolute right-3 flex items-center gap-2">
             {query && (
               <button
@@ -309,14 +281,12 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
               onClick={triggerGlobalSearch}
               disabled={!query.trim()}
               className={`${!query.trim() ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'} p-2 rounded-lg transition-colors flex items-center justify-center`}
-              title="Search"
             >
               <FontAwesomeIcon icon={faSearch} size="sm" />
             </button>
           </div>
         </div>
 
-        {/* Search Results Dropdown */}
         <AnimatePresence>
           {showDropdown && currentView === 'search' && (
             <motion.div
@@ -362,6 +332,7 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
 
       {/* Detail Fields Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
         {/* State Field */}
         <div className="flex flex-col relative">
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 ml-1 flex items-center gap-1">
@@ -374,12 +345,12 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
               onChange={(e) => handleFieldChange('state', e.target.value)}
               onFocus={() => {
                 setCurrentView('states');
+                setShowDropdown(true); // Focu karte hi list dikhao
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && value.state.trim()) {
+                if (e.key === 'Enter') {
                   setCurrentView('states');
                   setShowDropdown(true);
-                  fetchStates();
                 }
               }}
               placeholder="Maharashtra"
@@ -389,12 +360,9 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
               type="button"
               onClick={() => {
                 setCurrentView('states');
-                setShowDropdown(true);
-                fetchStates();
+                setShowDropdown(!showDropdown); // Toggle dropdown
               }}
-              disabled={!value.state.trim()}
-              className={`absolute right-2 p-1 transition-colors ${!value.state.trim() ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700'}`}
-              title="Search States"
+              className="absolute right-2 p-1 transition-colors text-blue-500 hover:text-blue-700"
             >
               <FontAwesomeIcon icon={faSearch} size="xs" />
             </button>
@@ -407,21 +375,24 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
                 exit={{ opacity: 0, y: 5 }}
                 className="absolute top-full left-0 z-[60] w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar"
               >
-                {loading ? (
+                {loading && statesList.length === 0 ? (
                   <div className="p-4 text-center text-xs text-gray-400 animate-pulse">Loading States...</div>
                 ) : filteredStates.length > 0 ? (
-                  filteredStates.map((state) => (
-                    <div
-                      key={state.id || state.state || state.name}
-                      onClick={() => {
-                        handleStateSelect(state);
-                        setShowDropdown(false);
-                      }}
-                      className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 font-medium transition-colors"
-                    >
-                      {state.state || state.name}
-                    </div>
-                  ))
+                  filteredStates.map((state, idx) => {
+                    const name = getStateName(state);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          handleStateSelect(state);
+                          setShowDropdown(false);
+                        }}
+                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 font-medium transition-colors"
+                      >
+                        {name}
+                      </div>
+                    )
+                  })
                 ) : (
                   <div className="p-4 text-center text-xs text-gray-400">No states found</div>
                 )}
@@ -442,18 +413,13 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
               onChange={(e) => handleFieldChange('city', e.target.value)}
               onFocus={() => {
                 setCurrentView('cities');
+                setShowDropdown(true); // Focus karte hi list dikhao
+                if(value.state && citiesList.length === 0) fetchCities(value.state); // Agar state hai aur cities nahi, toh fetch karo
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && value.city.trim()) {
-                  if (value.state) {
-                    setCurrentView('cities');
-                    setShowDropdown(true);
-                    fetchCities(value.state, value.city);
-                  } else {
-                    setCurrentView('states');
-                    setShowDropdown(true);
-                    fetchStates();
-                  }
+                if (e.key === 'Enter') {
+                  setCurrentView('cities');
+                  setShowDropdown(true);
                 }
               }}
               placeholder="Mumbai"
@@ -462,19 +428,11 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (value.state) {
-                  setCurrentView('cities');
-                  setShowDropdown(true);
-                  fetchCities(value.state, value.city);
-                } else {
-                  setCurrentView('states');
-                  setShowDropdown(true);
-                  fetchStates();
-                }
+                setCurrentView('cities');
+                setShowDropdown(!showDropdown);
+                if(value.state && citiesList.length === 0) fetchCities(value.state);
               }}
-              disabled={!value.city.trim()}
-              className={`absolute right-2 p-1 transition-colors ${!value.city.trim() ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700'}`}
-              title="Search Cities"
+              className="absolute right-2 p-1 transition-colors text-blue-500 hover:text-blue-700"
             >
               <FontAwesomeIcon icon={faSearch} size="xs" />
             </button>
@@ -487,23 +445,28 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
                 exit={{ opacity: 0, y: 5 }}
                 className="absolute top-full left-0 z-[60] w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar"
               >
-                {loading ? (
+                {loading && citiesList.length === 0 ? (
                   <div className="p-4 text-center text-xs text-gray-400 animate-pulse">Loading Cities...</div>
                 ) : filteredCities.length > 0 ? (
-                  filteredCities.map((city) => (
-                    <div
-                      key={city.id}
-                      onClick={() => {
-                        handleCitySelect(city);
-                        setShowDropdown(false);
-                      }}
-                      className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 font-medium transition-colors"
-                    >
-                      {city.name}
-                    </div>
-                  ))
+                  filteredCities.map((city, idx) => {
+                    const name = getCityName(city);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          handleCitySelect(city);
+                          setShowDropdown(false);
+                        }}
+                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 font-medium transition-colors"
+                      >
+                        {name}
+                      </div>
+                    )
+                  })
                 ) : (
-                  <div className="p-4 text-center text-xs text-gray-400">No cities found</div>
+                  <div className="p-4 text-center text-xs text-gray-400">
+                    {value.state ? "No cities found for this state" : "Please select a state first"}
+                  </div>
                 )}
               </motion.div>
             )}
@@ -521,23 +484,13 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
               value={value.locality}
               onChange={(e) => handleFieldChange('locality', e.target.value)}
               onFocus={() => {
-                setCurrentView('localities');
+                  setCurrentView('localities');
+                  setShowDropdown(true);
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && value.locality.trim()) {
-                  if (value.city) {
-                    setCurrentView('localities');
-                    setShowDropdown(true);
-                    fetchLocalities(value.city, value.state, value.locality);
-                  } else if (value.state) {
-                    setCurrentView('cities');
-                    setShowDropdown(true);
-                    fetchCities(value.state);
-                  } else {
-                    setCurrentView('states');
-                    setShowDropdown(true);
-                    fetchStates();
-                  }
+                if (e.key === 'Enter') {
+                  setCurrentView('localities');
+                  setShowDropdown(true);
                 }
               }}
               placeholder="Andheri West"
@@ -546,23 +499,10 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (value.city) {
-                  setCurrentView('localities');
-                  setShowDropdown(true);
-                  fetchLocalities(value.city, value.state, value.locality);
-                } else if (value.state) {
-                  setCurrentView('cities');
-                  setShowDropdown(true);
-                  fetchCities(value.state);
-                } else {
-                  setCurrentView('states');
-                  setShowDropdown(true);
-                  fetchStates();
-                }
+                setCurrentView('localities');
+                setShowDropdown(!showDropdown);
               }}
-              disabled={!value.locality.trim()}
-              className={`absolute right-2 p-1 transition-colors ${!value.locality.trim() ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700'}`}
-              title="Search Localities"
+              className="absolute right-2 p-1 transition-colors text-blue-500 hover:text-blue-700"
             >
               <FontAwesomeIcon icon={faSearch} size="xs" />
             </button>
@@ -575,23 +515,28 @@ const StateCityLocalityPicker: React.FC<PickerProps> = ({
                 exit={{ opacity: 0, y: 5 }}
                 className="absolute top-full left-0 z-[60] w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar"
               >
-                {loading ? (
+                {loading && localitiesList.length === 0 ? (
                   <div className="p-4 text-center text-xs text-gray-400 animate-pulse">Loading Localities...</div>
-                ) : localitiesList.length > 0 ? (
-                  localitiesList.map((locality, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => {
-                        handleLocalitySelect(locality);
-                        setShowDropdown(false);
-                      }}
-                      className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 font-medium transition-colors"
-                    >
-                      {locality}
-                    </div>
-                  ))
+                ) : filteredLocalities.length > 0 ? (
+                  filteredLocalities.map((locality, idx) => {
+                    const name = getLocalityName(locality);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          handleLocalitySelect(locality);
+                          setShowDropdown(false);
+                        }}
+                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700 font-medium transition-colors"
+                      >
+                        {name}
+                      </div>
+                    )
+                  })
                 ) : (
-                  <div className="p-4 text-center text-xs text-gray-400">No localities found</div>
+                  <div className="p-4 text-center text-xs text-gray-400">
+                      {value.city ? "No localities found" : "Please select a city first"}
+                  </div>
                 )}
               </motion.div>
             )}
